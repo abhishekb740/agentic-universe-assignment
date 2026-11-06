@@ -156,7 +156,20 @@ intent -> pending -> approved -> applied
 Hallucinated calls on `ks_cancel`: 60 against 330 baseline. Credits: 8 of 200.
 
 ## 8. Scale
-LOAD_SECTION
+Measured on `public_03_load` (12 workflows, 840,000 events a simulated day). Full table in `reports/public_03_load.md`. **Caveat:** this was my Windows laptop with both processes pinned to 4 logical CPUs, 15 GB RAM available, and other work running. It is not a clean 4 vCPU / 8 GB Linux box, as the Docker daemon wasn't running. Treat it as indicative.
+
+| Measure | Result |
+|---|---|
+| Wall-clock per simulated day, including the sim's own advance | 34 to 45 s, against the 10 minute target |
+| Ingest throughput, live days | about 27,000 to 38,000 events/s |
+| History bootstrap | 5.5M events inside day 0's 72 s of ingest |
+| End-to-end decision lag | worst tick 3.2 s of controller work per simulated hour; worst decide phase 0.5 s |
+| Peak memory | controller 0.47 GiB, simulator 0.31 GiB |
+| Store after the run | 566 MB, 3.24M rows in `call_log` |
+
+**What breaks first at 10x** (estimates from those numbers, not measured). The in-memory lead map grows with every lead and is never evicted: 2.3M leads now, 23M at 10x over the same 12 days, roughly 4 to 5 GiB, which gets close to the 8 GB limit, and worse the longer it runs. Fix: evict concluded leads, and look up misses in SQLite. Next is the single writer: about 280 s of ingest a simulated day still fits the budget, but at 100x it wouldn't. Then the store size, since `call_log` has no retention.
+
+**Partitioning.** Workflows share no statistics or governance state, so partition by workflow, with tenant as the grouping unit for approver limits. One worker per partition, each owning its cursor and state in Postgres, and a shared consumer writing to a queue so that chunks are processed once per partition. Credits become a shared budget per tenant (C15), which is the one thing that has to coordinate.
 
 ## 9. Reliability
 **Method.** `scripts/kill_test.py` starts public_02, kills the controller without warning (TerminateProcess on Windows, SIGKILL on Linux) at 8 random points, restarts with the same command, then runs to the end. It checks the sim's log and independently recounts every chunk. `reports/crash_recovery.md`:
