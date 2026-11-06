@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Replace this with your controller. Contract: ./run.sh <SIM_URL> runs until the scenario finishes.
+# Contract: ./run.sh <SIM_URL> runs the controller until the scenario finishes. No manual steps.
+# Restarting with the same command resumes from state/controller.db.
 set -euo pipefail
 SIM_URL="${1:?usage: ./run.sh <SIM_URL>}"
-echo "No controller yet — running the naive example against $SIM_URL" >&2
-exec python examples/naive_controller.py --url "$SIM_URL"
+cd "$(dirname "$0")"
+PY="$(command -v python3 || command -v python)"
+"$PY" -c "import httpx" 2>/dev/null || "$PY" -m pip install -q httpx
+exec "$PY" -m controller --url "$SIM_URL" --db "${CONTROLLER_DB:-state/controller.db}"
