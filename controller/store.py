@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS hourly(wf TEXT, minute INTEGER, did TEXT, prompt TEXT
 -- hour of day x population cell, for scheduling
 CREATE TABLE IF NOT EXISTS hour_seg(wf TEXT, hour INTEGER, seg INTEGER, dials INTEGER, connected INTEGER,
     PRIMARY KEY(wf,hour,seg)) WITHOUT ROWID;
+-- what each customer actually heard, from D0 on: the auditor's question is about a person on a day
+CREATE TABLE IF NOT EXISTS call_log(person_id TEXT NOT NULL, ts TEXT NOT NULL, wf TEXT NOT NULL, version INTEGER NOT NULL,
+    cohort TEXT, welcome TEXT, voice TEXT, did TEXT, prompt TEXT, disposition TEXT);
+CREATE INDEX IF NOT EXISTS call_log_person ON call_log(person_id);
 CREATE TABLE IF NOT EXISTS inbox(event_id INTEGER PRIMARY KEY, body TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS wf_state(wf TEXT PRIMARY KEY, state TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS proposals(proposal_id TEXT PRIMARY KEY, wf TEXT NOT NULL, kind TEXT NOT NULL, route TEXT NOT NULL,

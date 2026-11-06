@@ -93,7 +93,7 @@ class FakeChunks:
 
 
 LEAD = {"type": "lead", "lead_id": "l1", "features": {"lang": "hi", "city_tier": "1", "age_band": "60+", "value_band": "low"}}
-CALL = {"type": "call", "ts": "2027-01-04T10:00:00+05:30", "workflow_id": "w", "lead_id": "l1", "config_version": 1, "cohort_id": "default",
+CALL = {"type": "call", "ts": "2027-01-04T10:00:00+05:30", "workflow_id": "w", "lead_id": "l1", "person_id": "p1", "config_version": 1, "cohort_id": "default",
         "variant": {"welcome_message": "W1", "voice": "V1", "caller_id": "D1", "prompt_version": "P1"},
         "connected": True, "engaged": True, "qa": {"hallucination_flag": False}}
 
@@ -117,6 +117,7 @@ def test_ingest_exactly_once_across_a_crash(tmp_path):
     fixed.run()
     fixed.run()
     assert store.db.execute("SELECT SUM(dials),SUM(connected),SUM(engaged) FROM arm_day").fetchone() == (2, 2, 2)
+    assert store.db.execute("SELECT COUNT(*) FROM call_log").fetchone()[0] == 2
 
 
 # ------------------------------------------------------------------ governance

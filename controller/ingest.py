@@ -50,7 +50,7 @@ class Ingestor:
         arm = defaultdict(lambda: [0, 0, 0, 0])
         hourly = defaultdict(lambda: [0, 0, 0, 0])
         hseg = defaultdict(lambda: [0, 0])
-        new_leads, inbox = [], []
+        new_leads, inbox, calls = [], [], []
         count = 0
         db = self.s.db
         db.execute("BEGIN IMMEDIATE")
@@ -78,6 +78,9 @@ class Ingestor:
                     h[0] += 1; h[1] += conn; h[2] += eng; h[3] += hal
                     g = hseg[(wf, hh, seg)]
                     g[0] += 1; g[1] += conn
+                    if day >= 0:
+                        calls.append((e["person_id"], ts, wf, e["config_version"], e["cohort_id"], v["welcome_message"],
+                                      v["voice"], v["caller_id"], v["prompt_version"], e.get("disposition")))
                 elif t == "lead":
                     seg = self._seg(e["features"])
                     self.lead_seg[e["lead_id"]] = seg
@@ -99,6 +102,7 @@ class Ingestor:
                 "INSERT INTO hour_seg VALUES(?,?,?,?,?) ON CONFLICT DO UPDATE SET "
                 "dials=dials+excluded.dials,connected=connected+excluded.connected",
                 [(*k, *v) for k, v in hseg.items()])
+            db.executemany("INSERT INTO call_log VALUES(?,?,?,?,?,?,?,?,?,?)", calls)
             db.executemany("INSERT OR IGNORE INTO inbox(event_id,body) VALUES(?,?)", inbox)
             db.execute("UPDATE cursor SET last_chunk=?,events=events+?", (n, count))
             db.execute("COMMIT")

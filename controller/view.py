@@ -3,6 +3,7 @@
     python -m controller.view --db state/controller.db [--workflow ks_cancel]
     python -m controller.view --db state/controller.db --why ks_cancel --version 4
     python -m controller.view --db state/controller.db --weekly
+    python -m controller.view --db state/controller.db --customer nw_kyc:p0000298
 """
 from __future__ import annotations
 
@@ -85,6 +86,23 @@ def why(db, wf, version):
         print(f"  {ts[:16]} {k}: {summary}")
 
 
+def customer(db, person):
+    """stakeholders/02: why did this customer hear what they heard on this day?"""
+    rows = db.execute("SELECT ts,wf,version,cohort,welcome,voice,did,prompt,disposition FROM call_log "
+                      "WHERE person_id=? ORDER BY ts", (person,)).fetchall()
+    if not rows:
+        print(f"No calls recorded for {person} since the controller started.")
+    for ts, wf, version, cohort, welcome, voice, did, prompt, disp in rows:
+        print(f"{ts[:16]} {wf} v{version} cohort {cohort}: welcome {welcome}, voice {voice}, caller {did}, prompt {prompt} -> {disp}")
+        row = db.execute("SELECT proposal_id,route,approval_id,payload FROM proposals WHERE wf=? AND applied_version=?",
+                         (wf, version)).fetchone()
+        if row:
+            print(f"    live because: {json.loads(row[3]).get('rationale', '')}")
+            print(f"    proposal {row[0]}, approval {row[2] or 'auto policy'}")
+        else:
+            print("    live because: business default or a supervisor edit; see --why for this version")
+
+
 def weekly(db):
     """stakeholders/02 asks that caller ID and timing changes made without approval are reported weekly."""
     print("Changes made under auto-apply latitude (caller ID only)")
@@ -100,9 +118,12 @@ def main():
     ap.add_argument("--why")
     ap.add_argument("--version", type=int)
     ap.add_argument("--weekly", action="store_true")
+    ap.add_argument("--customer", help="person_id: what they heard, and why it was live")
     a = ap.parse_args()
     db = sqlite3.connect(f"file:{a.db}?mode=ro", uri=True)
-    if a.why:
+    if a.customer:
+        customer(db, a.customer)
+    elif a.why:
         why(db, a.why, a.version)
     elif a.weekly:
         weekly(db)

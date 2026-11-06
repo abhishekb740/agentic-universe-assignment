@@ -113,7 +113,9 @@ class Controller:
         routine_cap = gov.caps(wf)[1]
 
         # 1. safety first: a bad prompt goes to a human at once, whatever else is queued
-        if incident and incident.get("target") and not any(p["kind"] == "prompt_fix" for p in open_):
+        # ...but a request sent outside approver hours only sits in a queue and can expire there, so hold it till they open.
+        lo, hi = pub["governance"]["approver_hours"]
+        if incident and incident.get("target") and not any(p["kind"] == "prompt_fix" for p in open_) and lo <= hour < hi:
             if sent < hard_cap:
                 new = copy.deepcopy(cfg)
                 new["prompt_version"] = incident["target"]
@@ -143,6 +145,8 @@ class Controller:
             new = copy.deepcopy(cfg)
             new["allocations"]["default"]["caller_id"] = step
             if canon(new) != canon(cfg) and not any(p["route"] == "auto" for p in open_):
+                if pub["tenant_id"] in P.TENANT_PREFS:
+                    self.s.decide(now, ts, wf, "client_notice", f"caller rotation changing to {step}; shown on supervisor screen", step)
                 gov.auto_apply(wf, "did_rotation", base, cfg, new, now, ts,
                                f"Caller rotation toward {wanted}: flagged {brain.st['did']['bad']}, probing "
                                f"{brain.st['did']['probing']}. Within auto policy (max_shift {pol['max_shift']}); "
