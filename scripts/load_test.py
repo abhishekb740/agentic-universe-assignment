@@ -44,6 +44,9 @@ def main():
     ctl = subprocess.Popen([sys.executable, "-m", "controller", "--url", url, "--db", db],
                            stdout=open("runs/load.log", "w", encoding="utf-8"), stderr=subprocess.STDOUT)
     peak = {"controller": 0, "simulator": 0}
+    # Pin both to 4 logical CPUs, to match the 4 vCPU budget as closely as a shared host allows.
+    for pid in (ctl.pid, srv.pid):
+        psutil.Process(pid).cpu_affinity(list(range(4)))
 
     def sample():
         pc, ps = psutil.Process(ctl.pid), psutil.Process(srv.pid)

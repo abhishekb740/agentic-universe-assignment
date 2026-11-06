@@ -47,8 +47,8 @@ def screen(db, only=None):
     if m[0] is not None:
         dec = db.execute("SELECT COUNT(*) FROM decisions WHERE minute>=?", (m[0] - 60,)).fetchone()[0]
         burn = db.execute("SELECT COUNT(*) FROM decisions WHERE kind IN ('validation_run','llm_suggestions')").fetchone()[0]
-        print(f"
-Loop health: last tick at minute {m[0]} | work per tick avg {m[1]:.0f} ms, max {m[2]} ms | decisions last hour {dec} | "
+        print()
+        print(f"Loop health: last tick at minute {m[0]} | work per tick avg {m[1]:.0f} ms, max {m[2]} ms | decisions last hour {dec} | "
               f"credits left {m[3]} ({burn} paid calls)")
     alerts = db.execute("SELECT ts,severity,wf,message,action FROM alerts WHERE severity!='info' ORDER BY id DESC LIMIT 5").fetchall()
     if alerts:
